@@ -1,21 +1,14 @@
 -- ======================
--- ESP SOLO SHERIFF (TOGGLE POR EJECUCIÓN)
+-- ESP SOLO SHERIFF (ESTABLE)
 -- ======================
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 
--- ======================
--- TOGGLE GLOBAL
--- ======================
 _G.SheriffESP = not _G.SheriffESP
 
--- ======================
--- FUNCIÓN LIMPIAR TODO
--- ======================
 local function ClearESP()
 	for _, plr in ipairs(Players:GetPlayers()) do
 		if plr.Character then
@@ -25,14 +18,7 @@ local function ClearESP()
 	end
 end
 
--- ======================
--- SI SE DESACTIVA
--- ======================
 if not _G.SheriffESP then
-	if _G.SheriffESPConnection then
-		_G.SheriffESPConnection:Disconnect()
-		_G.SheriffESPConnection = nil
-	end
 	ClearESP()
 	warn("❌ ESP SHERIFF DESACTIVADO")
 	return
@@ -40,11 +26,9 @@ end
 
 warn("✅ ESP SHERIFF ACTIVADO")
 
--- ======================
--- FUNCIONES
--- ======================
 local function hasGun(player)
 	if not player then return false end
+
 	local function check(container)
 		if not container then return false end
 		for _, t in ipairs(container:GetChildren()) do
@@ -52,13 +36,17 @@ local function hasGun(player)
 				return true
 			end
 		end
+		return false
 	end
+
 	return check(player.Character) or check(player:FindFirstChild("Backpack"))
 end
 
 local function applyESP(player)
 	if not player.Character then return end
 	if player.Character:FindFirstChild("SheriffESP") then return end
+
+	ClearESP()
 
 	local h = Instance.new("Highlight")
 	h.Name = "SheriffESP"
@@ -70,25 +58,18 @@ local function applyESP(player)
 	h.Parent = player.Character
 end
 
--- ======================
--- LOOP ÚNICO Y CONTROLADO
--- ======================
-_G.SheriffESPConnection = RunService.RenderStepped:Connect(function()
-	if not _G.SheriffESP then return end
-
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Humanoid") then
-			if plr.Character.Humanoid.Health <= 0 then
-				local h = plr.Character:FindFirstChild("SheriffESP")
-				if h then h:Destroy() end
-			else
-				if hasGun(plr) then
+-- 🔥 LOOP SIMPLE CADA 1 SEGUNDO
+task.spawn(function()
+	while _G.SheriffESP do
+		for _, plr in ipairs(Players:GetPlayers()) do
+			if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Humanoid") then
+				if plr.Character.Humanoid.Health > 0 and hasGun(plr) then
 					applyESP(plr)
-				else
-					local h = plr.Character:FindFirstChild("SheriffESP")
-					if h then h:Destroy() end
+					break
 				end
 			end
 		end
+
+		task.wait(0.5)
 	end
 end)
