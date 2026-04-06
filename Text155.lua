@@ -1,75 +1,95 @@
 -- ======================
--- ESP SOLO SHERIFF (ESTABLE)
+-- ROLE DETECTOR (SIEMPRE ACTIVO)
 -- ======================
 
-if not game:IsLoaded() then game.Loaded:Wait() end
-
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local RS = game:GetService("ReplicatedStorage")
 
-_G.SheriffESP = not _G.SheriffESP
+getgenv().ROLE_TABLE = getgenv().ROLE_TABLE or {}
+local roleTable = getgenv().ROLE_TABLE
 
-local function ClearESP()
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if plr.Character then
-			local h = plr.Character:FindFirstChild("SheriffESP")
-			if h then h:Destroy() end
-		end
-	end
+local playerData = {}
+
+local function getRoleByTool(plr)
+    if not plr then return nil end
+
+    local backpack = plr:FindFirstChild("Backpack")
+    local char = plr.Character
+
+    if backpack then
+        if backpack:FindFirstChild("Knife") then
+            return "Murderer"
+        end
+        if backpack:FindFirstChild("Gun") then
+            return "Sheriff"
+        end
+    end
+
+    if char then
+        if char:FindFirstChild("Knife") then
+            return "Murderer"
+        end
+        if char:FindFirstChild("Gun") then
+            return "Sheriff"
+        end
+    end
+
+    return nil
 end
 
-if not _G.SheriffESP then
-	ClearESP()
-	warn("❌ ESP SHERIFF DESACTIVADO")
-	return
+local function updatePlayerRole(plr)
+    if not plr then return end
+
+    local role = getRoleByTool(plr)
+
+    if not role and playerData[plr.Name] then
+        role = playerData[plr.Name].Role
+    end
+
+    roleTable[plr.Name] = role or "Innocent"
 end
 
-warn("✅ ESP SHERIFF ACTIVADO")
-
-local function hasGun(player)
-	if not player then return false end
-
-	local function check(container)
-		if not container then return false end
-		for _, t in ipairs(container:GetChildren()) do
-			if t:IsA("Tool") and (t.Name == "Gun" or t.Name == "Pistol") then
-				return true
-			end
-		end
-		return false
-	end
-
-	return check(player.Character) or check(player:FindFirstChild("Backpack"))
+local function removePlayer(plr)
+    roleTable[plr.Name] = nil
 end
 
-local function applyESP(player)
-	if not player.Character then return end
-	if player.Character:FindFirstChild("SheriffESP") then return end
+for _, plr in ipairs(Players:GetPlayers()) do
+    updatePlayerRole(plr)
 
-	ClearESP()
-
-	local h = Instance.new("Highlight")
-	h.Name = "SheriffESP"
-	h.Adornee = player.Character
-	h.FillColor = Color3.fromRGB(0,0,255)
-	h.OutlineColor = Color3.fromRGB(0,0,255)
-	h.FillTransparency = 0.5
-	h.OutlineTransparency = 0
-	h.Parent = player.Character
+    plr.CharacterAdded:Connect(function()
+        task.wait(0.3)
+        updatePlayerRole(plr)
+    end)
 end
 
--- 🔥 LOOP SIMPLE CADA 1 SEGUNDO
+Players.PlayerAdded:Connect(function(plr)
+    updatePlayerRole(plr)
+
+    plr.CharacterAdded:Connect(function()
+        task.wait(0.3)
+        updatePlayerRole(plr)
+    end)
+end)
+
+Players.PlayerRemoving:Connect(removePlayer)
+
+RS:WaitForChild("Remotes")
+    :WaitForChild("Gameplay")
+    :WaitForChild("PlayerDataChanged")
+    .OnClientEvent:Connect(function(data)
+
+    playerData = data
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        updatePlayerRole(plr)
+    end
+end)
+
 task.spawn(function()
-	while _G.SheriffESP do
-		for _, plr in ipairs(Players:GetPlayers()) do
-			if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("Humanoid") then
-				if plr.Character.Humanoid.Health > 0 and hasGun(plr) then
-					applyESP(plr)
-					break
-				end
-			end
-		end
-
-		task.wait(0.5)
-	end
+    while true do
+        for _, plr in ipairs(Players:GetPlayers()) do
+            updatePlayerRole(plr)
+        end
+        task.wait(0.2)
+    end
 end)
